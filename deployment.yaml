@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: ingress-default-backend
-        image: image
+        image: paskalmaksim/ingress-default-backend:v0.0.1
         imagePullPolicy: IfNotPresent
         resources:
           requests:
