@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingress-default-backend
+spec:
+  selector:
+    matchLabels:
+      app: ingress-default-backend
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ingress-default-backend
+    spec:
+      containers:
+      - name: ingress-default-backend
+        image: image
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 10m  
+            memory: 100Mi
+        env:
+        - name: ERROR_GENERATOR_PATH
+          value: "/errorGenerator"
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingress-default-backend
+  labels:
+    app: ingress-default-backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    protocol: TCP
+  selector:
+    app: ingress-default-backend
