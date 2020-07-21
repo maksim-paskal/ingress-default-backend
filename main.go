@@ -57,6 +57,7 @@ func envDefaults(name string, defaultValue string) string {
 type TemplateData struct {
 	TemplateName string
 	Code         string
+	CodeText     string
 	RequestID    string
 	Format       string
 	Time         string
@@ -91,6 +92,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		target_code_int = 400
 		log.Warnf("%q looks like not a number.\n", data.Code)
 	}
+
+	data.CodeText = http.StatusText(target_code_int)
 
 	w.WriteHeader(target_code_int)
 

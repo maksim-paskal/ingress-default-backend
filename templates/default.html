@@ -14,12 +14,14 @@
 <h1>An error occurred.</h1>
 <p>Sorry, the page you are looking for is currently unavailable.<br/>
 Please try again later.</p>
-{{ if .RequestID }}
+
 <div style='font-size:12px'>
-requestID: {{ .RequestID }}
-<br/>
-time: {{ .Time }}
+status: {{ .Code }}<br/>
+description: {{ .CodeText }}<br/>
+time: {{ .Time }} UTC
+{{- if .RequestID }}
+requestID: {{ .RequestID }}<br/>
+{{- end }}
 </div>
-{{ end }}
 </body>
 </html>
