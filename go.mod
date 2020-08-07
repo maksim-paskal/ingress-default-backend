@@ -1,4 +1,4 @@
-module main
+module github.com/maksim-paskal/ingress-default-backend
 
 go 1.14
 

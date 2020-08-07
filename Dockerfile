@@ -6,6 +6,7 @@ COPY go.* /usr/src/ingress-default-backend/
 ENV GOOS=linux
 ENV GOARCH=amd64
 ENV CGO_ENABLED=0
+ENV GOFLAGS="-trimpath"
 
 RUN cd /usr/src/ingress-default-backend \
   && go mod download \
