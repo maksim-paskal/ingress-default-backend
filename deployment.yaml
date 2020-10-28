@@ -12,9 +12,29 @@ spec:
       labels:
         app: ingress-default-backend
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - ingress-default-backend
+            topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - paket-router
+              topologyKey: topology.kubernetes.io/zone
+            weight: 100
       containers:
       - name: ingress-default-backend
-        image: paskalmaksim/ingress-default-backend:v0.0.1
+        image: paskalmaksim/ingress-default-backend:v0.0.2.1
         imagePullPolicy: IfNotPresent
         resources:
           requests:
@@ -49,3 +69,13 @@ spec:
     protocol: TCP
   selector:
     app: ingress-default-backend
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: ingress-default-backend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ingress-default-backend
