@@ -6,7 +6,7 @@ spec:
   selector:
     matchLabels:
       app: ingress-default-backend
-  replicas: 1
+  replicas: 2
   template:
     metadata:
       labels:
