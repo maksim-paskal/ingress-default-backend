@@ -1,6 +1,5 @@
 FROM golang:1.16 as build
 
-COPY *.go /usr/src/ingress-default-backend/
 COPY go.* /usr/src/ingress-default-backend/
 COPY ./cmd /usr/src/ingress-default-backend/cmd
 
