@@ -5,6 +5,8 @@ test:
 	go mod tidy
 	go test -race ./cmd
 	golangci-lint run -v
+test-k8s:
+	kubectl apply --dry-run=client --validate -f deployment.yaml
 run:
 	go run -race -v ./cmd -http.listen=:8080
 build:

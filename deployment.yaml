@@ -12,6 +12,13 @@ spec:
       labels:
         app: ingress-default-backend
     spec:
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: ingress-default-backend
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -22,27 +29,14 @@ spec:
                 values:
                 - ingress-default-backend
             topologyKey: kubernetes.io/hostname
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                - key: app
-                  operator: In
-                  values:
-                  - ingress-default-backend
-              topologyKey: topology.kubernetes.io/zone
-            weight: 100
       containers:
       - name: ingress-default-backend
-        image: paskalmaksim/ingress-default-backend:v0.0.2.1
+        image: paskalmaksim/ingress-default-backend:<someversion>
         imagePullPolicy: IfNotPresent
         resources:
           requests:
             cpu: 10m  
             memory: 100Mi
-        env:
-        - name: ERROR_GENERATOR_PATH
-          value: "/errorGenerator"
         readinessProbe:
           httpGet:
             path: /healthz
