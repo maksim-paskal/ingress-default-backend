@@ -1,0 +1,12 @@
+apiVersion: v1
+entries:
+  ingress-default-backend:
+  - apiVersion: v2
+    created: "2021-11-05T11:34:33.996100621Z"
+    digest: 710569ec029f4c61140421b466ca04e9ee0526ea83807b69be7de371669b8b54
+    icon: https://helm.sh/img/helm.svg
+    name: ingress-default-backend
+    urls:
+    - https://github.com/maksim-paskal/ingress-default-backend/releases/download/helm-chart-1.0.3/ingress-default-backend-1.0.3.tgz
+    version: 1.0.3
+generated: "2021-11-05T11:34:33.778659534Z"
