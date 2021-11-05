@@ -1,0 +1,30 @@
+dockers:
+- goos: linux
+  goarch: amd64
+  image_templates:
+  - paskalmaksim/ingress-default-backend:latest
+  - paskalmaksim/ingress-default-backend:{{ .Tag }}
+  extra_files:
+  - templates/
+builds:
+- dir: ./cmd
+  env:
+  - CGO_ENABLED=0
+  flags:
+  - -trimpath
+  ldflags:
+  - -X main.buildTime={{.Version}}-{{.ShortCommit}}-{{.Timestamp}}
+  goos:
+  - linux
+  goarch:
+  - amd64
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
