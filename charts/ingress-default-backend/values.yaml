@@ -12,7 +12,7 @@ args: []
 
 resources:
   requests:
-    cpu: 20m  
+    cpu: 30m  
     memory: 100Mi
 
 topologySpreadConstraints:
