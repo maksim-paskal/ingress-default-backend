@@ -40,6 +40,7 @@ func main() {
 	}
 
 	log.SetLevel(level)
+	log.SetReportCaller(true)
 
 	log.SetFormatter(&log.JSONFormatter{})
 	log.Infof("Starting %s...", buildTime)
