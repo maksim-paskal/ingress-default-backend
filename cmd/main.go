@@ -12,11 +12,10 @@ limitations under the License.
 */
 package main
 
+// nolint:gosec
 import (
 	"flag"
 	"net/http"
-
-	// nolint:gosec
 	_ "net/http/pprof"
 
 	log "github.com/sirupsen/logrus"

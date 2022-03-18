@@ -5,4 +5,6 @@ COPY ./templates/ /app/templates/
 
 WORKDIR /app
 
+RUN apk upgrade
+
 ENTRYPOINT [ "/app/ingress-default-backend" ]
