@@ -1,27 +1,32 @@
+global:
+  imageRegistry: ""
+
 replicas: 2
 
-tag: v0.0.4
-
-image: paskalmaksim/ingress-default-backend
-imagePullPolicy: IfNotPresent
+image:
+  registry: docker.io
+  repository: paskalmaksim/ingress-default-backend
+  tag: v0.0.7
+  pullPolicy: IfNotPresent
 
 pdb:
+  enabled: true
   minAvailable: 1
 
 args: []
 
 resources:
   requests:
-    cpu: 20m  
+    cpu: 20m
     memory: 100Mi
 
-topologySpreadConstraints:
-- maxSkew: 1
-  topologyKey: topology.kubernetes.io/zone
-  whenUnsatisfiable: DoNotSchedule
-  labelSelector:
-    matchLabels:
-      app: ingress-default-backend
+topologySpreadConstraints: {}
+# - maxSkew: 1
+#   topologyKey: topology.kubernetes.io/zone
+#   whenUnsatisfiable: DoNotSchedule
+#   labelSelector:
+#     matchLabels:
+#       app: ingress-default-backend
 
 affinity:
   podAntiAffinity:
@@ -33,3 +38,9 @@ affinity:
           values:
           - ingress-default-backend
       topologyKey: kubernetes.io/hostname
+
+tolerations: []
+# - key: "kubernetes.azure.com/scalesetpriority"
+#   operator: "Equal"
+#   value: "spot"
+#   effect: "NoSchedule"

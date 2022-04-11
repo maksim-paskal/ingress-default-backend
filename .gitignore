@@ -1,2 +1,3 @@
 dist
 /ingress-default-backend
+coverage.out

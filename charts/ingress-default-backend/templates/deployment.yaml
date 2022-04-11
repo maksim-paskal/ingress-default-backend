@@ -12,17 +12,22 @@ spec:
       labels:
         app: ingress-default-backend
     spec:
+{{ if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 7 }}
+{{ end }}
+{{ if .Values.topologySpreadConstraints }}
       topologySpreadConstraints:
 {{ toYaml .Values.topologySpreadConstraints | indent 7 }}
+{{ end }}
       affinity:
 {{ toYaml .Values.affinity | indent 7 }}
       containers:
       - name: ingress-default-backend
-        image: "{{ .Values.image }}:{{ .Values.tag }}"
-        imagePullPolicy: {{ .Values.imagePullPolicy }}
-        command:
-        - /app/ingress-default-backend
+        image: {{ printf "%s/%s:%s" (default .Values.image.registry .Values.global.imageRegistry) .Values.image.repository .Values.image.tag  }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
 {{- if .Values.args }}
+        args:
 {{ toYaml .Values.args | indent 8 }}
 {{- end }}
         resources:
@@ -39,27 +44,3 @@ spec:
             port: 80
           initialDelaySeconds: 10
           periodSeconds: 10
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: ingress-default-backend
-  labels:
-    app: ingress-default-backend
-spec:
-  type: ClusterIP
-  ports:
-  - port: 80
-    protocol: TCP
-  selector:
-    app: ingress-default-backend
----
-apiVersion: policy/v1beta1
-kind: PodDisruptionBudget
-metadata:
-  name: ingress-default-backend
-spec:
-  minAvailable: {{ .Values.pdb.minAvailable }}
-  selector:
-    matchLabels:
-      app: ingress-default-backend
