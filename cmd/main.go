@@ -18,16 +18,15 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
+	"github.com/maksim-paskal/ingress-default-backend/pkg/web"
 	log "github.com/sirupsen/logrus"
 )
 
 //nolint:gochecknoglobals
 var (
-	buildTime             = "dev"
-	logLevel              = flag.String("log.level", "INFO", "log level")
-	httpListen            = flag.String("http.listen", ":80", "server listen")
-	exposeErrorGenerator  = flag.Bool("exposeErrorGenerator", false, "expose error generator endpoint")
-	errorGeneratorPattern = flag.String("errorGeneratorPattern", "/errorGenerator", "server listen")
+	buildTime  = "dev"
+	logLevel   = flag.String("log.level", "INFO", "log level")
+	httpListen = flag.String("http.listen", ":80", "server listen")
 )
 
 func main() {
@@ -35,7 +34,7 @@ func main() {
 
 	level, err := log.ParseLevel(*logLevel)
 	if err != nil {
-		log.Fatal(err)
+		log.WithError(err).Fatal()
 	}
 
 	log.SetLevel(level)
@@ -44,16 +43,9 @@ func main() {
 	log.SetFormatter(&log.JSONFormatter{})
 	log.Infof("Starting %s...", buildTime)
 
-	http.HandleFunc("/", handler)
-	http.HandleFunc("/healthz", healthz)
-
-	if *exposeErrorGenerator {
-		http.HandleFunc(*errorGeneratorPattern, errorGenerator)
-	}
-
 	log.Infof("Listen on port %s", *httpListen)
 
-	err = http.ListenAndServe(*httpListen, nil)
+	err = http.ListenAndServe(*httpListen, web.Handlers())
 	if err != nil {
 		log.Panic(err)
 	}
