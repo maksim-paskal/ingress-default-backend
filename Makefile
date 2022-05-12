@@ -29,7 +29,7 @@ run:
 build-goreleaser:
 	git tag -d `git tag -l "helm-chart-*"`
 	go run github.com/goreleaser/goreleaser@latest build --rm-dist --snapshot
-	mv ./dist/ingress-default-backend_linux_amd64/ingress-default-backend ingress-default-backend
+	mv ./dist/ingress-default-backend_linux_amd64_v1/ingress-default-backend ingress-default-backend
 build:
 	make build-goreleaser
 	docker build --pull . -t $(image)
