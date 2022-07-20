@@ -32,7 +32,7 @@ build-goreleaser:
 	mv ./dist/ingress-default-backend_linux_amd64_v1/ingress-default-backend ingress-default-backend
 build:
 	make build-goreleaser
-	docker build --pull . -t $(image)
+	docker build --pull --push . -t $(image)
 push:
 	docker push $(image)
 attack:
