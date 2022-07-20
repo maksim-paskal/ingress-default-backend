@@ -6,9 +6,9 @@ COPY ./templates/ /app/templates/
 WORKDIR /app
 
 RUN apk upgrade \
-&& addgroup -g 30000 -S app \
-&& adduser -u 30000 -D -S -G app app
+&& addgroup -g 30001 -S app \
+&& adduser -u 30001 -D -S -G app app
 
-USER 30000
+USER 30001
 
 ENTRYPOINT [ "/app/ingress-default-backend" ]

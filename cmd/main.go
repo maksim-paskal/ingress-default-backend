@@ -26,7 +26,7 @@ import (
 var (
 	buildTime  = "dev"
 	logLevel   = flag.String("log.level", "INFO", "log level")
-	httpListen = flag.String("http.listen", ":80", "server listen")
+	httpListen = flag.String("http.listen", ":8080", "server listen")
 )
 
 func main() {
