@@ -39,7 +39,7 @@ func Handlers() *http.ServeMux {
 	return mux
 }
 
-func handler(w http.ResponseWriter, r *http.Request) { // nolint:funlen
+func handler(w http.ResponseWriter, r *http.Request) { //nolint:funlen
 	// https://kubernetes.github.io/ingress-nginx/user-guide/custom-errors/
 	data := types.TemplateData{
 		Code:        r.Header.Get("X-Code"),

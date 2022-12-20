@@ -25,7 +25,7 @@ import (
 	"github.com/maksim-paskal/ingress-default-backend/pkg/web"
 )
 
-// nolint:gochecknoglobals
+//nolint:gochecknoglobals
 var (
 	client = &http.Client{}
 	ts     = httptest.NewServer(web.Handlers())
@@ -129,7 +129,7 @@ func TestTemplate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if resp.StatusCode != 504 {
+	if resp.StatusCode != http.StatusGatewayTimeout {
 		t.Fatalf("status code %d is not correct", resp.StatusCode)
 	}
 

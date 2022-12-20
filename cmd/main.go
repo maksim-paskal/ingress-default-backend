@@ -12,11 +12,12 @@ limitations under the License.
 */
 package main
 
-// nolint:gosec
+//nolint:gosec
 import (
 	"flag"
 	"net/http"
 	_ "net/http/pprof"
+	"time"
 
 	"github.com/maksim-paskal/ingress-default-backend/pkg/web"
 	log "github.com/sirupsen/logrus"
@@ -27,6 +28,10 @@ var (
 	buildTime  = "dev"
 	logLevel   = flag.String("log.level", "INFO", "log level")
 	httpListen = flag.String("http.listen", ":8080", "server listen")
+)
+
+const (
+	httpReadTimeout = 5 * time.Second
 )
 
 func main() {
@@ -45,8 +50,13 @@ func main() {
 
 	log.Infof("Listen on port %s", *httpListen)
 
-	err = http.ListenAndServe(*httpListen, web.Handlers())
-	if err != nil {
+	server := &http.Server{
+		Addr:        *httpListen,
+		Handler:     web.Handlers(),
+		ReadTimeout: httpReadTimeout,
+	}
+
+	if err := server.ListenAndServe(); err != nil {
 		log.Panic(err)
 	}
 }
