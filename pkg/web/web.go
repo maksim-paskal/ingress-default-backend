@@ -45,7 +45,7 @@ func handler(w http.ResponseWriter, r *http.Request) { //nolint:funlen
 		Code:        r.Header.Get("X-Code"),
 		RequestID:   r.Header.Get("X-Request-ID"),
 		Format:      r.Header.Get("X-Format"),
-		OriginalURI: r.Header.Get("X-Original-URI"),
+		OriginalURI: r.Header.Get("X-Original-URI"), //nolint:canonicalheader
 		Namespace:   r.Header.Get("X-Namespace"),
 		IngressName: r.Header.Get("X-Ingress-Name"),
 		ServiceName: r.Header.Get("X-Service-Name"),
@@ -79,12 +79,12 @@ func handler(w http.ResponseWriter, r *http.Request) { //nolint:funlen
 	data.TemplateName = fmt.Sprintf("%s/%d.html", *templateFolder, targetCodeInt)
 
 	if _, err := os.Stat(data.TemplateName); err != nil {
-		data.TemplateName = fmt.Sprintf("%s/default.html", *templateFolder)
+		data.TemplateName = *templateFolder + "/default.html"
 	}
 
 	tmpl := template.New(filepath.Base(data.TemplateName))
-	tmpl, err = tmpl.Funcs(f).ParseFiles(data.TemplateName)
 
+	tmpl, err = tmpl.Funcs(f).ParseFiles(data.TemplateName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.WithError(err).Error()
@@ -93,7 +93,6 @@ func handler(w http.ResponseWriter, r *http.Request) { //nolint:funlen
 	}
 
 	err = tmpl.Execute(w, data)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.WithError(err).Error()
@@ -104,7 +103,7 @@ func handler(w http.ResponseWriter, r *http.Request) { //nolint:funlen
 	log.WithFields(data.Fields()).Info()
 }
 
-func healthz(w http.ResponseWriter, r *http.Request) {
+func healthz(w http.ResponseWriter, _ *http.Request) {
 	if _, err := w.Write([]byte("ok")); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -131,8 +130,8 @@ func errorGenerator(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(targetCodeInt)
-	_, err = w.Write([]byte(fmt.Sprintf("code=%d", targetCodeInt)))
 
+	_, err = w.Write([]byte(fmt.Sprintf("code=%d", targetCodeInt)))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

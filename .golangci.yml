@@ -9,3 +9,7 @@ linters:
   - varnamelen
   - gochecknoglobals
   - exhaustruct
+  - depguard
+  - gomnd
+  - execinquery
+  - exportloopref

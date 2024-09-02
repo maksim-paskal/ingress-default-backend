@@ -36,7 +36,7 @@ func (data *TemplateData) Fields() log.Fields {
 	v := reflect.ValueOf(*data)
 	fields := make(log.Fields)
 
-	for i := 0; i < v.NumField(); i++ {
+	for i := range v.NumField() {
 		fields[v.Type().Field(i).Name] = v.Field(i).String()
 	}
 
