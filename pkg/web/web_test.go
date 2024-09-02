@@ -35,7 +35,7 @@ var (
 func TestHealtz(t *testing.T) {
 	t.Parallel()
 
-	url := fmt.Sprintf("%s/healthz", ts.URL)
+	url := ts.URL + "/healthz"
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -118,7 +118,7 @@ func TestTemplate(t *testing.T) {
 	req.Header.Set("X-Code", "504")
 	req.Header.Set("X-Request-ID", "1")
 	req.Header.Set("X-Format", "2")
-	req.Header.Set("X-Original-URI", "3")
+	req.Header.Set("X-Original-URI", "3") //nolint:canonicalheader
 	req.Header.Set("X-Namespace", "4")
 	req.Header.Set("X-Ingress-Name", "5")
 	req.Header.Set("X-Service-Name", "6")
