@@ -1,6 +1,7 @@
 module github.com/maksim-paskal/ingress-default-backend
 
 go 1.22
+toolchain go1.24.1
 
 require (
 	github.com/Masterminds/sprig v2.22.0+incompatible
@@ -15,6 +16,6 @@ require (
 	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	golang.org/x/crypto v0.26.0 // indirect
-	golang.org/x/sys v0.24.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 )
