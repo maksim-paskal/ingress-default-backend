@@ -26,6 +26,7 @@ spec:
 {{ end }}
       affinity:
 {{ toYaml .Values.affinity | indent 7 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       containers:
       - name: ingress-default-backend
         image: {{ printf "%s/%s:%s" (default .Values.image.registry .Values.global.imageRegistry) .Values.image.repository .Values.image.tag  }}
@@ -33,6 +34,10 @@ spec:
 {{- if .Values.args }}
         args:
 {{ toYaml .Values.args | indent 8 }}
+{{- end }}
+{{- with .Values.lifecycle }}
+        lifecycle:
+{{ toYaml . | indent 10 }}
 {{- end }}
         resources:
 {{ toYaml .Values.resources | indent 9 }}
