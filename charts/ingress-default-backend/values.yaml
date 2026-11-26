@@ -6,7 +6,7 @@ replicas: 1
 image:
   registry: docker.io
   repository: paskalmaksim/ingress-default-backend
-  tag: v0.1.1
+  tag: v0.2.1
   pullPolicy: IfNotPresent
 
 pdb:
