@@ -8,7 +8,7 @@ test:
 	go vet ./cmd/... ./pkg/...
 	go mod tidy
 	go test -race -coverprofile coverage.out  ./cmd/... ./pkg/...
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run -v
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0 run -v
 coverage:
 	go tool cover -html=coverage.out
 testHelm:
@@ -28,7 +28,7 @@ run:
 	go run -race -v ./cmd -http.listen=:8080
 build-goreleaser:
 	git tag -d `git tag -l "helm-chart-*"`
-	go run github.com/goreleaser/goreleaser@latest build --rm-dist --snapshot
+	go run github.com/goreleaser/goreleaser/v2@latest build --clean --snapshot
 	mv ./dist/ingress-default-backend_linux_amd64_v1/ingress-default-backend ingress-default-backend
 build:
 	make build-goreleaser

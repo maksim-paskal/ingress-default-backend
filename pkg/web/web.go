@@ -13,21 +13,42 @@ limitations under the License.
 package web
 
 import (
+	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
-	"github.com/Masterminds/sprig"
+	"github.com/Masterminds/sprig/v3"
 	"github.com/maksim-paskal/ingress-default-backend/pkg/types"
 	log "github.com/sirupsen/logrus"
 )
 
-var templateFolder = flag.String("templates", "templates", "folder with templates")
+const (
+	minCode = 200
+	maxCode = 599
+)
+
+var (
+	templateFolder = flag.String("templates", "templates", "folder with templates")
+	// built once, html/template copies the entries on Funcs.
+	funcMap       = sprig.FuncMap()
+	templateCache = make(map[string]cachedTemplate)
+	templateMu    sync.RWMutex
+)
+
+type cachedTemplate struct {
+	modTime time.Time
+	size    int64
+	tmpl    *template.Template
+}
 
 func Handlers() *http.ServeMux {
 	mux := http.NewServeMux()
@@ -39,7 +60,52 @@ func Handlers() *http.ServeMux {
 	return mux
 }
 
-func handler(w http.ResponseWriter, r *http.Request) { //nolint:funlen
+// parseCode converts raw to a HTTP status code, not a number is a 400.
+func parseCode(raw string) int {
+	code, err := strconv.Atoi(raw)
+	if err != nil {
+		log.Warnf("%q looks like not a number.", raw)
+
+		return http.StatusBadRequest
+	}
+
+	return code
+}
+
+func validCode(code int) bool {
+	return code >= minCode && code <= maxCode
+}
+
+// 204 and 304 responses can not have a body.
+func bodyAllowed(code int) bool {
+	return code != http.StatusNoContent && code != http.StatusNotModified
+}
+
+// loadTemplate returns parsed template, parsed templates are cached until the file changes.
+func loadTemplate(name string, info os.FileInfo) (*template.Template, error) {
+	templateMu.RLock()
+
+	cached, ok := templateCache[name]
+
+	templateMu.RUnlock()
+
+	if ok && cached.modTime.Equal(info.ModTime()) && cached.size == info.Size() {
+		return cached.tmpl, nil
+	}
+
+	tmpl, err := template.New(filepath.Base(name)).Funcs(funcMap).ParseFiles(name)
+	if err != nil {
+		return nil, err //nolint:wrapcheck
+	}
+
+	templateMu.Lock()
+	templateCache[name] = cachedTemplate{modTime: info.ModTime(), size: info.Size(), tmpl: tmpl}
+	templateMu.Unlock()
+
+	return tmpl, nil
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
 	// https://kubernetes.github.io/ingress-nginx/user-guide/custom-errors/
 	data := types.TemplateData{
 		Code:        r.Header.Get("X-Code"),
@@ -54,47 +120,42 @@ func handler(w http.ResponseWriter, r *http.Request) { //nolint:funlen
 	}
 
 	if len(data.Code) == 0 {
-		data.Code = "400"
+		data.Code = strconv.Itoa(http.StatusBadRequest)
 	}
 
-	targetCodeInt, err := strconv.Atoi(data.Code)
-	if err != nil {
-		targetCodeInt = 400
+	targetCodeInt := parseCode(data.Code)
 
-		log.Warnf("%q looks like not a number.\n", data.Code)
-	}
-
-	if targetCodeInt < 100 || targetCodeInt > 999 {
-		http.Error(w, "code is not in range 100-999", http.StatusInternalServerError)
+	if !validCode(targetCodeInt) {
+		log.WithFields(data.Fields()).Warnf("code is not in range %d-%d", minCode, maxCode)
+		http.Error(w, fmt.Sprintf("code is not in range %d-%d", minCode, maxCode), http.StatusInternalServerError)
 
 		return
 	}
 
+	// show the effective code, not the raw header value
+	data.Code = strconv.Itoa(targetCodeInt)
 	data.CodeText = http.StatusText(targetCodeInt)
+
+	if !bodyAllowed(targetCodeInt) {
+		w.WriteHeader(targetCodeInt)
+		log.WithFields(data.Fields()).Info()
+
+		return
+	}
+
+	// render before writing the status, so a broken template can return 500
+	var buf bytes.Buffer
+
+	if err := render(&buf, &data, targetCodeInt); err != nil {
+		log.WithError(err).WithField("template", data.TemplateName).Error()
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+
+		return
+	}
 
 	w.WriteHeader(targetCodeInt)
 
-	f := sprig.FuncMap()
-
-	data.TemplateName = fmt.Sprintf("%s/%d.html", *templateFolder, targetCodeInt)
-
-	if _, err := os.Stat(data.TemplateName); err != nil {
-		data.TemplateName = *templateFolder + "/default.html"
-	}
-
-	tmpl := template.New(filepath.Base(data.TemplateName))
-
-	tmpl, err = tmpl.Funcs(f).ParseFiles(data.TemplateName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.WithError(err).Error()
-
-		return
-	}
-
-	err = tmpl.Execute(w, data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if _, err := buf.WriteTo(w); err != nil {
 		log.WithError(err).Error()
 
 		return
@@ -103,9 +164,50 @@ func handler(w http.ResponseWriter, r *http.Request) { //nolint:funlen
 	log.WithFields(data.Fields()).Info()
 }
 
+// render executes the template for code, falls back to default.html
+// when there is no template for the code or it is broken.
+func render(buf *bytes.Buffer, data *types.TemplateData, code int) error {
+	var err error
+
+	for _, name := range []string{
+		fmt.Sprintf("%s/%d.html", *templateFolder, code),
+		*templateFolder + "/default.html",
+	} {
+		buf.Reset()
+
+		data.TemplateName = name
+
+		err = renderFile(buf, data, name)
+		if err == nil {
+			return nil
+		}
+
+		// missing template for the code is normal
+		if !errors.Is(err, fs.ErrNotExist) {
+			log.WithError(err).WithField("template", name).Error()
+		}
+	}
+
+	return err
+}
+
+func renderFile(buf *bytes.Buffer, data *types.TemplateData, name string) error {
+	info, err := os.Stat(name)
+	if err != nil {
+		return err //nolint:wrapcheck
+	}
+
+	tmpl, err := loadTemplate(name, info)
+	if err != nil {
+		return err
+	}
+
+	return tmpl.Execute(buf, data) //nolint:wrapcheck
+}
+
 func healthz(w http.ResponseWriter, _ *http.Request) {
 	if _, err := w.Write([]byte("ok")); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.WithError(err).Error()
 	}
 }
 
@@ -113,26 +215,33 @@ func healthz(w http.ResponseWriter, _ *http.Request) {
 func errorGenerator(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
 	}
 
 	code := r.Form.Get("code")
 
 	if len(code) == 0 {
-		code = "200"
+		code = strconv.Itoa(http.StatusOK)
 	}
 
-	targetCodeInt, err := strconv.Atoi(code)
-	if err != nil {
-		targetCodeInt = 400
+	targetCodeInt := parseCode(code)
 
-		log.Printf("%q looks like not a number.\n", code)
+	if !validCode(targetCodeInt) {
+		http.Error(w, fmt.Sprintf("code is not in range %d-%d", minCode, maxCode), http.StatusBadRequest)
+
+		return
 	}
 
 	w.WriteHeader(targetCodeInt)
 
-	_, err = w.Write([]byte(fmt.Sprintf("code=%d", targetCodeInt)))
+	if !bodyAllowed(targetCodeInt) {
+		return
+	}
+
+	_, err = fmt.Fprintf(w, "code=%d", targetCodeInt) //nolint:gosec // integer only, no user markup
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.WithError(err).Error()
 	}
 }

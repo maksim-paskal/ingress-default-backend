@@ -19,11 +19,15 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/maksim-paskal/ingress-default-backend/pkg/web"
 )
+
+const xCode = "X-Code"
 
 //nolint:gochecknoglobals
 var (
@@ -31,6 +35,42 @@ var (
 	ts     = httptest.NewServer(web.Handlers())
 	ctx    = context.Background()
 )
+
+func TestMain(m *testing.M) {
+	// set before any request, the flag is read by handlers
+	if err := flag.Set("templates", "testdata"); err != nil {
+		panic(err)
+	}
+
+	os.Exit(m.Run())
+}
+
+// get sends request with headers and returns status code and body.
+func get(t *testing.T, path string, headers map[string]string) (int, string) {
+	t.Helper()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+path, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("request %s failed: %v", path, err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return resp.StatusCode, string(body)
+}
 
 func TestHealtz(t *testing.T) {
 	t.Parallel()
@@ -106,10 +146,6 @@ func TestErrorGenerator(t *testing.T) {
 func TestTemplate(t *testing.T) {
 	t.Parallel()
 
-	if err := flag.Set("templates", "testdata"); err != nil {
-		t.Fatal(err)
-	}
-
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -152,5 +188,167 @@ ServicePort=7`
 
 	if string(body) != correctBody {
 		t.Fatalf("not correct response [%s],[%s]", string(body), correctBody)
+	}
+}
+
+func TestErrorGeneratorInvalidCode(t *testing.T) {
+	t.Parallel()
+
+	// out of range codes must not panic WriteHeader (connection reset)
+	for _, code := range []string{"0", "-1", "100", "199", "600", "1000", "99999"} {
+		status, body := get(t, "/errorGenerator?code="+code, nil)
+
+		if status != http.StatusBadRequest {
+			t.Errorf("code=%s: status %d, want 400, body %q", code, status, body)
+		}
+	}
+
+	// not a number
+	status, body := get(t, "/errorGenerator?code=abc", nil)
+	if status != http.StatusBadRequest || body != "code=400" {
+		t.Errorf("code=abc: status %d body %q", status, body)
+	}
+}
+
+func TestErrorGeneratorBadForm(t *testing.T) {
+	t.Parallel()
+
+	status, body := get(t, "/errorGenerator?code=%zz", nil)
+
+	if status != http.StatusBadRequest {
+		t.Errorf("status %d, want 400", status)
+	}
+
+	if strings.Contains(body, "code=200") {
+		t.Errorf("error response has success payload: %q", body)
+	}
+}
+
+func TestErrorGeneratorNoBody(t *testing.T) {
+	t.Parallel()
+
+	for _, code := range []int{http.StatusNoContent, http.StatusNotModified} {
+		status, body := get(t, fmt.Sprintf("/errorGenerator?code=%d", code), nil)
+
+		if status != code || body != "" {
+			t.Errorf("code %d: status %d body %q", code, status, body)
+		}
+	}
+}
+
+func TestHandlerInvalidCode(t *testing.T) {
+	t.Parallel()
+
+	for _, code := range []string{"0", "100", "101", "199", "600", "1000"} {
+		status, _ := get(t, "/", map[string]string{xCode: code})
+
+		if status != http.StatusInternalServerError {
+			t.Errorf("X-Code=%s: status %d, want 500", code, status)
+		}
+	}
+}
+
+func TestHandlerNoBody(t *testing.T) {
+	t.Parallel()
+
+	for _, code := range []int{http.StatusNoContent, http.StatusNotModified} {
+		status, body := get(t, "/", map[string]string{xCode: strconv.Itoa(code)})
+
+		if status != code || body != "" {
+			t.Errorf("X-Code=%d: status %d body %q", code, status, body)
+		}
+	}
+}
+
+func TestHandlerMissingTemplate(t *testing.T) {
+	t.Parallel()
+
+	// testdata has neither 404.html nor default.html
+	status, body := get(t, "/", map[string]string{xCode: "404"})
+
+	if status != http.StatusInternalServerError {
+		t.Errorf("status %d, want 500", status)
+	}
+
+	if strings.Contains(body, "testdata") || strings.Contains(body, "no such file") {
+		t.Errorf("response leaks internal details: %q", body)
+	}
+}
+
+func TestHandlerNotNumericCode(t *testing.T) {
+	t.Parallel()
+
+	// the rendered code must be the same as the status code
+	for _, code := range []string{"abc", ""} {
+		status, body := get(t, "/", map[string]string{xCode: code})
+
+		if status != http.StatusBadRequest || body != "Code=400" {
+			t.Errorf("X-Code=%q: status %d body %q", code, status, body)
+		}
+	}
+
+	status, body := get(t, "/", map[string]string{xCode: "0400"})
+	if status != http.StatusBadRequest || body != "Code=400" {
+		t.Errorf("X-Code=0400: status %d body %q", status, body)
+	}
+}
+
+// not parallel: changes the global templates flag while no other test is running.
+func TestTemplateReload(t *testing.T) { //nolint:paralleltest
+	dir := t.TempDir()
+	file := dir + "/500.html"
+
+	old := flag.Lookup("templates").Value.String()
+
+	if err := flag.Set("templates", dir); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() {
+		_ = flag.Set("templates", old)
+	})
+
+	for _, content := range []string{"first", "second version"} {
+		if err := os.WriteFile(file, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		status, body := get(t, "/", map[string]string{xCode: "500"})
+
+		if status != http.StatusInternalServerError || body != content {
+			t.Fatalf("want %q, got status %d body %q", content, status, body)
+		}
+	}
+}
+
+func TestTemplateFallback(t *testing.T) { //nolint:paralleltest
+	dir := t.TempDir()
+
+	old := flag.Lookup("templates").Value.String()
+
+	if err := flag.Set("templates", dir); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() {
+		_ = flag.Set("templates", old)
+	})
+
+	files := map[string]string{
+		"503.html":     "{{ broken",
+		"default.html": "default",
+	}
+
+	for name, content := range files {
+		if err := os.WriteFile(dir+"/"+name, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// broken template for the code must not hide the real status
+	status, body := get(t, "/", map[string]string{xCode: "503"})
+
+	if status != http.StatusServiceUnavailable || body != "default" {
+		t.Fatalf("status %d body %q", status, body)
 	}
 }

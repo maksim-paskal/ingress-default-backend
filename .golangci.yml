@@ -1,15 +1,39 @@
-run:
-  timeout: 5m
+version: "2"
+linters:
+  default: all
+  disable:
+    - depguard
+    - exhaustruct
+    - exhaustruct_v5
+    - godoclint
+    - gomodguard
+    - gochecknoglobals
+    - mnd
+    - noinlineerr
+    - varnamelen
+    - wsl
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
   fix: true
-linters:
-  enable-all: true
-  disable:
-  - exhaustivestruct
-  - varnamelen
-  - gochecknoglobals
-  - exhaustruct
-  - depguard
-  - gomnd
-  - execinquery
-  - exportloopref
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
