@@ -352,3 +352,18 @@ func TestTemplateFallback(t *testing.T) { //nolint:paralleltest
 		t.Fatalf("status %d body %q", status, body)
 	}
 }
+
+// not parallel: changes the global shutdown flag, reset on cleanup.
+func TestHealthzShuttingDown(t *testing.T) { //nolint:paralleltest
+	web.SetShuttingDown(true)
+
+	t.Cleanup(func() {
+		web.SetShuttingDown(false)
+	})
+
+	status, _ := get(t, "/healthz", nil)
+
+	if status != http.StatusServiceUnavailable {
+		t.Fatalf("status %d, want 503 while shutting down", status)
+	}
+}

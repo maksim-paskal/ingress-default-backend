@@ -6,7 +6,7 @@ replicas: 1
 image:
   registry: docker.io
   repository: paskalmaksim/ingress-default-backend
-  tag: v0.1.1
+  tag: v0.2.1
   pullPolicy: IfNotPresent
 
 pdb:
@@ -19,7 +19,20 @@ hpa:
   maxReplicas: 10
   targetCPUUtilizationPercentage: 80
 
+# extra container args, for example:
+#   - -shutdown.delay=5s
+#   - -shutdown.timeout=10s
 args: []
+
+# must be greater than the shutdown timeout plus the shutdown delay
+terminationGracePeriodSeconds: 30
+
+# optional container lifecycle, for example:
+# lifecycle:
+#   preStop:
+#     exec:
+#       command: ["sleep", "5"]
+lifecycle: {}
 
 resources:
   requests:
