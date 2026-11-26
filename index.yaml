@@ -2,6 +2,18 @@ apiVersion: v1
 entries:
   ingress-default-backend:
   - apiVersion: v2
+    created: "2026-11-26T10:05:55.977930701Z"
+    description: Ingress default backend service
+    digest: 4533d17f1c45bd64bf5b26e120722e0c5dc167f92636c6e5a518e882cf377886
+    icon: https://helm.sh/img/helm.svg
+    maintainers:
+    - email: paskal.maksim@gmail.com
+      name: maksim-paskal
+    name: ingress-default-backend
+    urls:
+    - https://github.com/maksim-paskal/ingress-default-backend/releases/download/helm-chart-1.0.10/ingress-default-backend-1.0.10.tgz
+    version: 1.0.10
+  - apiVersion: v2
     created: "2024-09-02T12:26:06.529403217Z"
     description: Ingress default backend service
     digest: 86b77e15f1d4199c1ef60344ce573e8c80be7426882ce21a43e49935e00730ba
