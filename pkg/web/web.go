@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
@@ -205,7 +206,22 @@ func renderFile(buf *bytes.Buffer, data *types.TemplateData, name string) error 
 	return tmpl.Execute(buf, data) //nolint:wrapcheck
 }
 
+// shuttingDown is set when the server is stopping, /healthz then fails
+// so the pod is removed from the service endpoints.
+var shuttingDown atomic.Bool
+
+// SetShuttingDown marks the server as shutting down.
+func SetShuttingDown(v bool) {
+	shuttingDown.Store(v)
+}
+
 func healthz(w http.ResponseWriter, _ *http.Request) {
+	if shuttingDown.Load() {
+		http.Error(w, "shutting down", http.StatusServiceUnavailable)
+
+		return
+	}
+
 	if _, err := w.Write([]byte("ok")); err != nil {
 		log.WithError(err).Error()
 	}
